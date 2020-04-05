@@ -114,7 +114,97 @@ AdaBoost（Adaptive Boosting，自适应增强）,是集成学习Boosting方法�
 	集合策略,Adaboost分类采用的是加权表决法，最终的强分类器为：$$f(x) = sign(\sum\limits_{k=1}^{K}\alpha_kG_k(x))$$
 
 - 对于回归问题(以AdaBoost R2为例)
+	对于回归问题的误差率的问题，对于第k个弱学习器，计算他在训练集上的最大误差$$E_k= max|y_i - G_k(x_i)|\;i=1,2...m$$
 	
+	然后计算每个样本的相对误差$$e_{ki}= \frac{|y_i - G_k(x_i)|}{E_k}$$
+	
+	这里是误差损失为线性时的情况，如果我们用平方误差，则$e_{ki}= \frac{(y_i - G_k(x_i))^2}{E_k^2}$
+	如果是指数误差 则$e_{ki}= 1 - exp（\frac{-y_i + G_k(x_i))}{E_k}）$
+
+	最终得到第k个弱学习器的 误差率$$e_k =  \sum\limits_{i=1}^{m}w_{ki}e_{ki}$$
+	
+	我们再来看看如何得到弱学习器权重系数α。这里有：$$\alpha_k =\frac{e_k}{1-e_k}$$
+	
+	对于更新更新样本权重D，第k+1个弱学习器的样本集权重系数为$$w_{k+1,i} = \frac{w_{ki}}{Z_k}\alpha_k^{1-e_{ki}}$$
+	
+	这里Zk是规范化因子$$Z_k = \sum\limits_{i=1}^{m}w_{ki}\alpha_k^{1-e_{ki}}$$
+	
+	结合策略，和分类问题稍有不同，采用的是对加权的弱学习器取权重中位数对应的弱学习器作为强学习器的方法，最终的强回归器为$$f(x) =G_{k^*}(x)$$
+	
+	其中，Gk∗(x)是所有ln1/αk,k=1,2,....K的中位数值对应序号k∗对应的弱学习器。　
+
+**损失函数**：
+	Adaboost 模型是加法模型，学习算法为前向分步学习算法，损失函数为指数函数的分类问题。
+	
+	前向分步学习算法也好理解，我们的算法是通过一轮轮的弱学习器学习，利用前一个强学习器的结果和当前弱学习器来更新当前的强学习器的模型。也就是说，第k-1轮的强学习器为$$f_{k-1}(x) = \sum\limits_{i=1}^{k-1}\alpha_iG_{i}(x)$$
+	
+	而第k轮的强学习器为$$f_{k}(x) = \sum\limits_{i=1}^{k}\alpha_iG_{i}(x)$$
+	
+	上两式一比较可以得到fk(x)=fk−1(x)+αkGk(x)
+	
+	Adaboost损失函数为指数函数，即定义损失函数为$$\underbrace{arg\;min\;}_{\alpha, G} \sum\limits_{i=1}^{m}exp(-y_if_{k}(x))$$
+
+	利用前向分步学习算法的关系可以得到损失函数为$$(\alpha_k, G_k(x)) = \underbrace{arg\;min\;}_{\alpha, G}\sum\limits_{i=1}^{m}exp[(-y_i) (f_{k-1}(x) + \alpha G(x))]$$
+	
+	令w′ki=exp(−yifk−1(x)), 它的值不依赖于α,G,因此与最小化无关，仅仅依赖于fk−1(x),随着每一轮迭代而改变。
+	
+	将这个式子带入损失函数,损失函数转化为$$(\alpha_k, G_k(x)) = \underbrace{arg\;min\;}_{\alpha, G}\sum\limits_{i=1}^{m}w_{ki}^{’}exp[-y_i\alpha G(x)]$$
+
+	首先，我们求Gk(x).，可以得到$$G_k(x) = \underbrace{arg\;min\;}_{G}\sum\limits_{i=1}^{m}w_{ki}^{’}I(y_i \neq G(x_i))$$
+
+	将Gk(x)带入损失函数，并对α求导，使其等于0，则就得到了$$\alpha_k = \frac{1}{2}log\frac{1-e_k}{e_k}$$
+
+	其中，ek即为我们前面的分类误差率。$$e_k = \frac{\sum\limits_{i=1}^{m}w_{ki}^{’}I(y_i \neq G(x_i))}{\sum\limits_{i=1}^{m}w_{ki}^{’}} = \sum\limits_{i=1}^{m}w_{ki}I(y_i \neq G(x_i))$$
+	
+	最后看样本权重的更新。利用f_k(x)=f_k−1(x)+α_kG_k(x)和w′ki=exp(−yifk−1(x))，即可得：
+
+	w′k+1,i=w′kiexp[−yiαkGk(x)]
+
+**二分类问题过程**:
+1) 初始化样本集权重为
+	2) 使用具有权重Dk的样本集来训练数据，得到弱分类器Gk(x)
+	3) 计算Gk(x)的分类误差率 ek
+	4) 计算弱分类器的系数 αk
+	5) 更新样本集的权重分布W_k+1
+	2-5 一直重复k次  k为分类器个数
+6) 构建最终分类器为：$f(x) = sign(\sum\limits_{k=1}^{K}\alpha_kG_k(x))$
+
+
+对于Adaboost多元分类算法，其实原理和二元分类类似，最主要区别在弱分类器的系数上。比如Adaboost SAMME算法，它的弱分类器的系数
+$$\alpha_k = \frac{1}{2}log\frac{1-e_k}{e_k} + log(R-1)$$
+
+其中R为类别数。从上式可以看出，如果是二元分类，R=2，则上式和我们的二元分类算法中的弱分类器的系数一致。
+
+
+**回归类问题过程**:
+
+其过程是和二分类问题一样 就是用的公式不一样。
+
+详细公式过程参看 [集成学习之Adaboost算法原理小结](https://www.cnblogs.com/pinard/p/6133937.html)
+
+**正则化**：
+为了防止 Adaboost 过拟合，我们通常也会加入正则化项，这个正则化项我们通常称为步长（learning rate）。对于前面的弱学习器的迭代
+fk(x)=fk−1(x)+αkGk(x)
+
+如果我们加上了正则化项，则有
+fk(x)=fk−1(x)+ναkGk(x)
+
+ν的取值范围为0<ν≤1。对于同样的训练集学习效果，较小的ν意味着我们需要更多的弱学习器的迭代次数。通常我们用步长和迭代最大次数一起来决定算法的拟合效果。
+
+**Adaboost的主要优点有：**
+
+1）Adaboost作为分类器时，分类精度很高
+
+2）可以使用各种回归分类模型来构建弱学习器，非常灵活。
+
+3） 不容易发生过拟合
+
+**Adaboost的主要缺点有：**
+
+1）对异常样本敏感，异常样本在迭代中可能会获得较高的权重。
+
+
+
 
 ### GDBT
 GDBT树（Gradient Boosting Decision Tree）指的是一种迭代的决策树，就是由一堆树通过Boosting方式组合成的一种算法，其泛化能力较强。
